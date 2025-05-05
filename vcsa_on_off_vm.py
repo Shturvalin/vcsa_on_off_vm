@@ -2,20 +2,20 @@ import requests
 import time
 import urllib3
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from colorama import Fore, Style
 
 # Игнорируем предупреждения о незащищённых HTTPS-запросах
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Настройки подключения к vCenter
-vcenter_server = 'https://10.10.203.92'  # URL vCenter сервера
+vcenter_server = 'https://10.10.10.10'  # URL vCenter сервера
 username = 'administrator@vsphere.local'  # Имя пользователя для подключения
-password = 'QAZ123wsx!@#'  # Рекомендуется использовать безопасные методы хранения паролей
-vm_ids = ['vm-1001', 'vm-1002', 'vm-1007', 'vm-1008', 'vm-1009', 'vm-1038', 'vm-1039', 'vm-1040', 'vm-1041', 'vm-1042',
-          'vm-1043', 'vm-1044']  # Список ID виртуальных машин
+password = 'Password!'  # Рекомендуется использовать безопасные методы хранения паролей 
+vm_ids = ['vm-1', 'vm-2', 'vm-3', 'vm-4', 'vm-5', 'vm-6', 'vm-7', 'vm-8', 'vm-9', 'vm-10']  # Список ID виртуальных машин
 action_interval = 10  # Интервал в секундах между действиями (включение/выключение)
 action_duration = 60  # Продолжительность работы виртуальной машины перед выключением
 iterations = 3000  # Количество итераций для включения/выключения ВМ
-
 
 def get_auth_token():
     """Получаем токен аутентификации для работы с API vCenter."""
@@ -25,7 +25,6 @@ def get_auth_token():
         return response.json()['value']  # Возвращаем токен
     else:
         raise Exception(f"Failed to get auth token: {response.status_code} - {response.text}")
-
 
 def list_vms(token):
     """Получаем список всех виртуальных машин на vCenter."""
@@ -38,7 +37,6 @@ def list_vms(token):
         return response.json()['value']  # Возвращаем список ВМ
     else:
         raise Exception(f"Failed to list VMs: {response.status_code} - {response.text}")
-
 
 def get_vm_power_state(token, vm_id):
     """Получаем состояние питания конкретной виртуальной машины."""
@@ -56,7 +54,6 @@ def get_vm_power_state(token, vm_id):
     else:
         raise Exception(f"Failed to get VM power state: {response.status_code} - {response.text}")
 
-
 def power_on_vm(token, vm_id):
     """Включаем виртуальную машину по её ID."""
     url = f"{vcenter_server}/rest/vcenter/vm/{vm_id}/power/start"
@@ -65,12 +62,11 @@ def power_on_vm(token, vm_id):
     }
     response = requests.post(url, headers=headers, verify=False)
     if response.status_code == 204:
-        print(f"VM {vm_id} powered on successfully.")  # Успешное включение
+        print(Fore.GREEN + f"Включили ВМ {vm_id} успешно." + Style.RESET_ALL)  # Успешное включение
     elif response.status_code == 200:
-        print(f"Включили ВМ {vm_id} OK.")
+        print(Fore.GREEN + f"Включили ВМ {vm_id} OK." + Style.RESET_ALL)
     else:
         raise Exception(f"Отказ включения ВМ {vm_id}: {response.status_code} - {response.text}")
-
 
 def power_off_vm(token, vm_id):
     """Выключаем виртуальную машину по её ID."""
@@ -80,16 +76,19 @@ def power_off_vm(token, vm_id):
     }
     response = requests.post(url, headers=headers, verify=False)
     if response.status_code == 204:
-        print(f"VM {vm_id} powered off successfully.")  # Успешное выключение
+        print(Fore.RED + f"Выключили ВМ {vm_id} успешно." + Style.RESET_ALL)  # Успешное выключение
     elif response.status_code == 200:
-        print(f"Выключили ВМ {vm_id} OK.")
+        print(Fore.RED + f"Выключили ВМ {vm_id} OK." + Style.RESET_ALL)
     else:
         raise Exception(f"Failed to power off VM {vm_id}: {response.status_code} - {response.text}")
 
-
 def manage_vms(token):
     """Управляем виртуальными машинами: включаем и выключаем их в цикле."""
-    for _ in range(iterations):  # Повторяем заданное количество итераций
+    completed_iterations = 0
+    for iteration in range(1, iterations + 1):  # Повторяем заданное количество итераций
+        print(f"\n\n--- Начало итерации {iteration} ---")
+        print(f"Текущее время: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+
         with ThreadPoolExecutor() as executor:  # Создаем пул потоков для параллельного выполнения
             futures = {}
             # Включаем все ВМ
@@ -119,8 +118,10 @@ def manage_vms(token):
                 except Exception as e:
                     print(f"Error powering off VM {vm_id}: {e}")
 
-            time.sleep(action_interval)  # Ждем перед следующим циклом
+            completed_iterations += 1
+            print(f"Итерация {iteration} завершена. Всего завершено: {completed_iterations} из {iterations}.")
 
+            time.sleep(action_interval)  # Ждем перед следующим циклом
 
 def main():
     """Основная функция для запуска программы."""
@@ -135,7 +136,6 @@ def main():
 
     except Exception as e:
         print(f"An error occurred: {e}")  # Обрабатываем исключения и выводим сообщения об ошибках
-
 
 if __name__ == "__main__":
     main()  # Запускаем основную функцию при выполнении скрипта
